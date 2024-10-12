@@ -4,222 +4,96 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import "./styles.css";
+import React, { FC } from 'react';
 
-import { Devs } from "@utils/constants";
-import definePlugin from "@utils/types";
-import { findComponentByCodeLazy } from "@webpack";
-import {
-    Button,
-    Clipboard,
-    FluxDispatcher,
-    GuildMemberStore,
-    Text,
-    Toasts,
-    UserProfileStore,
-    UserStore
-} from "@webpack/common";
-import { Guild, GuildMember } from "discord-types/general";
-
-const SummaryItem = findComponentByCodeLazy("borderType", "showBorder", "hideDivider");
-
-interface SavedProfile {
-    nick: string | null;
-    pronouns: string | null;
-    bio: string | null;
-    themeColors: number[] | undefined;
-    banner: string | undefined;
-    avatar: string | undefined;
-    profileEffectId: string | undefined;
-    avatarDecoration: string | undefined;
+interface ChangeLog {
 }
 
-const savedProfile: SavedProfile = {
-    nick: null,
-    pronouns: null,
-    bio: null,
-    themeColors: undefined,
-    banner: undefined,
-    avatar: undefined,
-    profileEffectId: undefined,
-    avatarDecoration: undefined,
-};
+interface Meta {
+  name: string;
+  author: string;
+  authorId: string;
+  version: string;
+  description: string;
+  invite: string;
+  donate: string;
+  patreon: string;
+  website: string;
+  source: string;
+  updateUrl: string;
+}
 
-const IdentityActions = {
-    setPendingAvatar(avatar: string | undefined) {
-        FluxDispatcher.dispatch({
-            type: "GUILD_IDENTITY_SETTINGS_SET_PENDING_AVATAR",
-            avatar,
-        });
-    },
-    setPendingBanner(banner: string | undefined) {
-        FluxDispatcher.dispatch({
-            type: "GUILD_IDENTITY_SETTINGS_SET_PENDING_BANNER",
-            banner,
-        });
-    },
-    setPendingBio(bio: string | null) {
-        FluxDispatcher.dispatch({
-            type: "GUILD_IDENTITY_SETTINGS_SET_PENDING_BIO",
-            bio,
-        });
-    },
-    setPendingNickname(nickname: string | null) {
-        FluxDispatcher.dispatch({
-            type: "GUILD_IDENTITY_SETTINGS_SET_PENDING_NICKNAME",
-            nickname,
-        });
-    },
-    setPendingPronouns(pronouns: string | null) {
-        FluxDispatcher.dispatch({
-            type: "GUILD_IDENTITY_SETTINGS_SET_PENDING_PRONOUNS",
-            pronouns,
-        });
-    },
-    setPendingThemeColors(themeColors: number[] | undefined) {
-        FluxDispatcher.dispatch({
-            type: "GUILD_IDENTITY_SETTINGS_SET_PENDING_THEME_COLORS",
-            themeColors,
-        });
-    },
-    setPendingProfileEffectId(profileEffectId: string | undefined) {
-        FluxDispatcher.dispatch({
-            type: "GUILD_IDENTITY_SETTINGS_SET_PENDING_PROFILE_EFFECT_ID",
-            profileEffectId,
-        });
-    },
-    setPendingAvatarDecoration(avatarDecoration: string | undefined) {
-        FluxDispatcher.dispatch({
-            type: "GUILD_IDENTITY_SETTINGS_SET_PENDING_AVATAR_DECORATION",
-            avatarDecoration,
-        });
-    },
-};
+class EditUsers {
+  name: string;
+  author: string;
+  authorId: string;
+  version: string;
+  description: string;
 
-export default definePlugin({
-    name: "ServerProfilesToolbox",
-    authors: [Devs.D3SOX],
-    description: "Adds a copy/paste/reset button to the server profiles editor",
+  constructor(meta: Meta) {
+    for (let key in meta) this[key] = meta[key];
+  }
 
-    patchServerProfiles(guild: Guild) {
-        const guildId = guild.id;
-        const currentUser = UserStore.getCurrentUser();
-        const premiumType = currentUser.premiumType ?? 0;
+  getName(): string {
+    return this.name;
+  }
 
-        const copy = () => {
-            const profile = UserProfileStore.getGuildMemberProfile(currentUser.id, guildId);
-            const nick = GuildMemberStore.getNick(guildId, currentUser.id);
-            const selfMember = GuildMemberStore.getMember(guildId, currentUser.id) as GuildMember & { avatarDecoration: string | undefined };
-            savedProfile.nick = nick ?? "";
-            savedProfile.pronouns = profile.pronouns;
-            savedProfile.bio = profile.bio;
-            savedProfile.themeColors = profile.themeColors;
-            savedProfile.banner = profile.banner;
-            savedProfile.avatar = selfMember.avatar;
-            savedProfile.profileEffectId = profile.profileEffectId;
-            savedProfile.avatarDecoration = selfMember.avatarDecoration;
-        };
+  getAuthor(): string {
+    return this.author;
+  }
 
-        const paste = () => {
-            IdentityActions.setPendingNickname(savedProfile.nick);
-            IdentityActions.setPendingPronouns(savedProfile.pronouns);
-            if (premiumType === 2) {
-                IdentityActions.setPendingBio(savedProfile.bio);
-                IdentityActions.setPendingThemeColors(savedProfile.themeColors);
-                IdentityActions.setPendingBanner(savedProfile.banner);
-                IdentityActions.setPendingAvatar(savedProfile.avatar);
-                IdentityActions.setPendingProfileEffectId(savedProfile.profileEffectId);
-                IdentityActions.setPendingAvatarDecoration(savedProfile.avatarDecoration);
-            }
-        };
+  getVersion(): string {
+    return this.version;
+  }
 
-        const reset = () => {
-            IdentityActions.setPendingNickname(null);
-            IdentityActions.setPendingPronouns("");
-            if (premiumType === 2) {
-                IdentityActions.setPendingBio(null);
-                IdentityActions.setPendingThemeColors([]);
-                IdentityActions.setPendingBanner(undefined);
-                IdentityActions.setPendingAvatar(undefined);
-                IdentityActions.setPendingProfileEffectId(undefined);
-                IdentityActions.setPendingAvatarDecoration(undefined);
-            }
-        };
+  getDescription(): string {
+    return `The Library Plugin needed for ${this.name} is missing. Open the Plugin Settings to download it. \n\n${this.description}`;
+  }
 
-        const copyToClipboard = () => {
-            copy();
-            Clipboard.copy(JSON.stringify(savedProfile));
-        };
+  downloadLibrary(): void {
+    BdApi.Net.fetch("https://mwittrien.github.io/BetterDiscordAddons/Library/0BDFDB.plugin.js").then(r => {
+      if (!r || r.status !== 200) throw new Error();
+      else return r.text();
+    }).then(b => {
+      if (!b) throw new Error();
+      else return require("fs").writeFile(require("path").join(BdApi.Plugins.folder, "0BDFDB.plugin.js"), b, _ => BdApi.showToast("Finished downloading BDFDB Library", { type: "success" }));
+    }).catch(error => {
+      BdApi.alert("Error", "Could not download BDFDB Library Plugin. Try again later or download it manually from GitHub: https://mwittrien.github.io/downloader/?library");
+    });
+  }
 
-        const pasteFromClipboard = async () => {
-            try {
-                const clip = await navigator.clipboard.readText();
-                if (!clip) {
-                    Toasts.show({
-                        message: "Clipboard is empty",
-                        type: Toasts.Type.FAILURE,
-                        id: Toasts.genId(),
-                    });
-                    return;
-                }
-                const clipboardProfile: SavedProfile = JSON.parse(clip);
-
-                if (!("nick" in clipboardProfile)) {
-                    Toasts.show({
-                        message: "Data is not in correct format",
-                        type: Toasts.Type.FAILURE,
-                        id: Toasts.genId(),
-                    });
-                    return;
-                }
-
-                Object.assign(savedProfile, JSON.parse(clip));
-                paste();
-            } catch (e) {
-                Toasts.show({
-                    message: `Failed to read clipboard data: ${e}`,
-                    type: Toasts.Type.FAILURE,
-                    id: Toasts.genId(),
-                });
-            }
-        };
-
-            return <SummaryItem title="Server Profiles Toolbox" hideDivider={false} forcedDivider className="vc-server-profiles-toolbox">
-            <div style={{ display: "flex", alignItems: "center", flexDirection: "column", gap: "5px" }}>
-                <Text variant="text-md/normal">
-                    Use the following buttons to mange the currently selected server
-                </Text>
-                <div style={{ display: "flex", gap: "5px" }}>
-                    <Button onClick={copy}>
-                        Copy profile
-                    </Button>
-                    <Button onClick={paste}>
-                        Paste profile
-                    </Button>
-                    <Button onClick={reset}>
-                        Reset profile
-                    </Button>
-                </div>
-                <div style={{ display: "flex", gap: "5px" }}>
-                    <Button onClick={copyToClipboard}>
-                        Copy to clipboard
-                    </Button>
-                    <Button onClick={pasteFromClipboard}>
-                        Paste from clipboard
-                    </Button>
-                </div>
-            </div>
-        </SummaryItem>;
-    },
-
-    patches: [
-        {
-            find: "PROFILE_CUSTOMIZATION_GUILD_HINT.format",
-            replacement: {
-                match: /\(0,\i\.jsx\)\(\i\.\i,\{guildId:(\i)\.id,/,
-                replace: "$self.patchServerProfiles($1),$&"
-            }
+  load(): void {
+    if (!window.BDFDB_Global || !Array.isArray(window.BDFDB_Global.pluginQueue)) window.BDFDB_Global = Object.assign({}, window.BDFDB_Global, { pluginQueue: [] });
+    if (!window.BDFDB_Global.downloadModal) {
+      window.BDFDB_Global.downloadModal = true;
+      BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${this.name} is missing. Please click "Download Now" to install it.`, {
+        confirmText: "Download Now",
+        cancelText: "Cancel",
+        onCancel: _ => { delete window.BDFDB_Global.downloadModal; },
+        onConfirm: _ => {
+          delete window.BDFDB_Global.downloadModal;
+          this.downloadLibrary();
         }
-    ],
+      });
+    }
+    if (!window.BDFDB_Global.pluginQueue.includes(this.name)) window.BDFDB_Global.pluginQueue.push(this.name);
+  }
 
-});
+  start(): void {
+    this.load();
+  }
+
+  stop(): void {
+  }
+
+  getSettingsPanel(collapseStates: Record<string, boolean> = {}): HTMLElement {
+    let template = document.createElement("template");
+    template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${this.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
+    template.content.firstElementChild.querySelector("a").addEventListener("click", this.downloadLibrary.bind(this));
+    return template.content.firstElementChild;
+  }
+} 
+
+export default EditUsers;
+
+}];
